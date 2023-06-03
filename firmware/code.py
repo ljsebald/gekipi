@@ -4,9 +4,9 @@ import board
 import usb_hid
 from analogio import AnalogIn
 from adafruit_hid.mouse import Mouse
-from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
+from bitmap_keyboard import BitmapKeyboard
 
 # Adjust the GPIO pins listed here to your setup
 potentiometer = board.GP28
@@ -15,7 +15,7 @@ pot_positive  = True       # Set to False if your potentiometer value lowers as 
 #          Left R     Left G     Left B     Left Menu  Right R    Right G    Right B    Right Menu Left WAD   Right WAD  Test        Service
 keys =   [ board.GP0, board.GP1, board.GP2, board.GP6, board.GP3, board.GP4, board.GP5, board.GP7, board.GP8, board.GP9, board.GP22, board.GP21 ]
 keymap = [ Keycode.A, Keycode.S, Keycode.D, Keycode.F, Keycode.J, Keycode.K, Keycode.L, Keycode.O, Keycode.U, Keycode.E, Keycode.F6, Keycode.F7 ]
-press =  [ False,     False,     False,     False,     False,     False,     False,     False,     True,      True,      False,      False      ] 
+press =  [ False,     False,     False,     False,     False,     False,     False,     False,     True,      True,      False,      False      ]
 
 ###############################################################################
 #                Nothing should have to be changed below here.                #
@@ -27,7 +27,7 @@ power_mode.switch_to_output(True)
 # Init the HID stuff and set up the potentiometer.
 pot = AnalogIn(potentiometer)
 mouse = Mouse(usb_hid.devices)
-kbd = Keyboard(usb_hid.devices)
+kbd = BitmapKeyboard(usb_hid.devices)
 keypin = []
 lastpressed = []
 last_pos = None
@@ -42,7 +42,7 @@ for i in range(len(keys)):
     k = keys[i]
     pin = digitalio.DigitalInOut(k)
     pin.direction = digitalio.Direction.INPUT
-    
+
     if press[i] == False:
         pin.pull = digitalio.Pull.UP
     else:
