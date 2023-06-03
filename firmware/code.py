@@ -21,7 +21,7 @@ press =  [ False,     False,     False,     False,     False,     False,     Fal
 #                Nothing should have to be changed below here.                #
 ###############################################################################
 # Switch over the power mode to clean up ADC noise.
-power_mode = digitalio.DigitalInOut(board.GP23)
+power_mode = digitalio.DigitalInOut(board.SMPS_MODE)
 power_mode.switch_to_output(True)
 
 # Init the HID stuff and set up the potentiometer.
@@ -38,7 +38,8 @@ analogsum = val * 32
 analogidx = 0
 
 # Init the GPIO used for the buttons
-for k in keys:
+for i in range(len(keys)):
+    k = keys[i]
     pin = digitalio.DigitalInOut(k)
     pin.direction = digitalio.Direction.INPUT
     
