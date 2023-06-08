@@ -14,7 +14,15 @@ The hardware design in the board directory is covered by the CERN Open Hardware
 License Version 2 - Strongly Reciprocal (CERN-OHL-S). See `cern_ohl_s_v2.txt`
 for more information.
 
-### Pinouts and GPIO assignments:
+## Dependencies
+
+This code depends on the following CircuitPython libraries (beyond the ones
+included by default in the Pi Pico/Pi Pico W CircuitPython 8.x):
+
+- adafruit_hid
+- neopixel
+
+## Pinouts and GPIO assignments:
 
 Buttons (other than the WAD and Test/Service button) have the following pinout:
 1. +5v
@@ -48,7 +56,7 @@ The Stick connector has the following pinout:
 2. Analog Signal
 3. Analog GND
 
-The LEDs are wired in the following order:
+The LEDs are wired in the following order (all are single LEDs except the WADs):
 1. Left Red
 2. Left Green
 3. Left Blue
@@ -60,6 +68,8 @@ The LEDs are wired in the following order:
 9. Left WAD
 10. Right WAD
 11. NFC
+
+The number of LEDs per WAD can be set in the code and defaults to 6.
 
 GPIO pins are assigned as follows on the Pico:
 - GPIO0: Left Red
