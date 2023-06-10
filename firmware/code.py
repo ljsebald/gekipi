@@ -18,11 +18,15 @@
 import digitalio
 import board
 import usb_hid
+import neopixel
 from analogio import AnalogIn
 from adafruit_hid.mouse import Mouse
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 from bitmap_keyboard import BitmapKeyboard
+
+# Number of LEDs in each WAD button
+wad_leds = 6
 
 # Adjust the GPIO pins listed here to your setup
 potentiometer = board.GP28
@@ -52,6 +56,25 @@ val = (pot.value >> 6)
 analogwindow = [val] * 32
 analogsum = val * 32
 analogidx = 0
+
+# Set up the LEDs to a default state
+leds = neopixel.NeoPixel(board.GP20, 9 + 2 * wad_leds, auto_write=False)
+leds.brightness = 0.5
+leds[0]  = (255, 0, 0)                      # Left Red
+leds[1]  = (0, 255, 0)                      # Left Green
+leds[2]  = (0, 0, 255)                      # Left Blue
+leds[3]  = (255, 0, 0)                      # Right Red
+leds[4]  = (0, 255, 0)                      # Right Green
+leds[5]  = (0, 0, 255)                      # Right Blue
+leds[6]  = (255, 0, 0)                      # Left Menu (Red)
+leds[7]  = (255, 255, 0)                    # Right Menu (Yellow)
+leds[8 + 2 * wad_leds] = (255, 255, 255)    # NFC
+
+for i in range(wad_leds):
+    leds[8 + i]  = (255, 0, 255)            # Left WAD
+    leds[8 + i + wad_leds] = (255, 0, 255)  # Right WAD
+
+leds.show()
 
 # Init the GPIO used for the buttons
 for i in range(len(keys)):
