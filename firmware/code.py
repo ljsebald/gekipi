@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 import digitalio
 import board
@@ -24,6 +24,7 @@ from adafruit_hid.mouse import Mouse
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 from bitmap_keyboard import BitmapKeyboard
+from aimeio import AimeIO
 
 # Number of LEDs in each WAD button
 wad_leds = 6
@@ -48,6 +49,8 @@ power_mode.switch_to_output(True)
 pot = AnalogIn(potentiometer)
 mouse = Mouse(usb_hid.devices)
 kbd = BitmapKeyboard(usb_hid.devices)
+leds = neopixel.NeoPixel(board.GP20, 9 + 2 * wad_leds, auto_write=False)
+aimeio = AimeIO(leds, wad_leds, None)
 keypin = []
 lastpressed = []
 last_pos = None
@@ -58,7 +61,6 @@ analogsum = val * 32
 analogidx = 0
 
 # Set up the LEDs to a default state
-leds = neopixel.NeoPixel(board.GP20, 9 + 2 * wad_leds, auto_write=False)
 leds.brightness = 0.5
 leds[0]  = (255, 0, 0)                      # Left Red
 leds[1]  = (0, 255, 0)                      # Left Green
@@ -91,6 +93,9 @@ for i in range(len(keys)):
 
 # Main loop
 while True:
+    # Handle anything that might be waiting on the input device.
+    aimeio.poll()
+
     # Handle mouse emulation based on a potentiometer...
     # XXXX: I don't really like this 32 element moving average...
     #       but at least it irons out a lot of the noise, and it
