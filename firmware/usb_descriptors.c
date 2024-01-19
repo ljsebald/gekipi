@@ -118,7 +118,7 @@ uint8_t const desc_configuration[] = {
 
   TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID, 4, HID_ITF_PROTOCOL_NONE,
                            sizeof(desc_hid_report), EPNUM_HID_OUT,
-                           EPNUM_HID_IN, CFG_TUD_HID_EP_BUFSIZE, 5)
+                           EPNUM_HID_IN, CFG_TUD_HID_EP_BUFSIZE, 1)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR

@@ -5,31 +5,74 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "pico/stdlib.h"
-#include "usb_descriptors.h"
+#include "hardware/gpio.h"
 
-int main(void) {
-    stdio_init_all();
-    board_init();
-    tusb_init();
-    
-    for(;;) {
-        tud_task();
+#include "usb_descriptors.h"
+#include "gekipi-config.h"
+
+static void init_gpios(void) {
+    int i;
+
+    for(i = 0; i < 12; ++i) {
+        gpio_init(gpio_pins[i]);
+        gpio_set_dir(gpio_pins[i], GPIO_IN);
+        if(gpio_pulls[i])
+            gpio_pull_up(gpio_pins[i]);
+        else
+            gpio_pull_down(gpio_pins[i]);
+    }
+}
+
+static uint16_t read_buttons(void) {
+    int i;
+    bool st;
+    uint16_t rv = 0;
+    uint32_t all = gpio_get_all();
+
+    for(i = 0; i < 12; ++i) {
+        if((all & (1 << gpio_pins[i])) == gpio_pressed[i])
+            rv |= (1 << i);
     }
 
-    return 0;
+    return rv;
+}
+
+static void hid_task(void) {
+    const uint32_t interval_ms = 1;
+    static uint32_t start_ms = 0;
+    uint16_t state;
+
+    // Refresh at most once every 1ms.
+    if(board_millis() - start_ms < interval_ms)
+        return;
+
+    start_ms += interval_ms;
+    state = read_buttons();
+
+    if(tud_suspended() && state) {
+        tud_remote_wakeup();
+    }
+    else {
+        gekipi_gamepad_report_t report = { .x = 0, .y = 0, .buttons = state };
+
+        if(!tud_hid_ready())
+            return;
+
+        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
+    }
 }
 
 uint16_t tud_hid_get_report_cb(uint8_t iface, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
-  // TODO not Implemented
-  (void)iface;
-  (void)report_id;
-  (void)report_type;
-  (void)buffer;
-  (void)reqlen;
+    // TODO not Implemented
+    (void)iface;
+    (void)report_id;
+    (void)report_type;
+    (void)buffer;
+    (void)reqlen;
 
-  return 0;
+    return 0;
 }
 
 void tud_hid_set_report_cb(uint8_t iface, uint8_t report_id,
@@ -45,5 +88,18 @@ void tud_hid_set_report_cb(uint8_t iface, uint8_t report_id,
 
     // echo back anything we received from host
     tud_hid_report(0, buffer, bufsize);
+}
+
+int main(void) {
+    stdio_init_all();
+    board_init();
+    tusb_init();
+
+    for(;;) {
+        tud_task();
+        hid_task();
+    }
+
+    return 0;
 }
 
