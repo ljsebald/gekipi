@@ -5,6 +5,7 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "pico/stdlib.h"
+#include "hardware/adc.h"
 #include "hardware/gpio.h"
 
 #include "usb_descriptors.h"
@@ -12,6 +13,8 @@
 
 static void init_gpios(void) {
     int i;
+
+    adc_init();
 
     for(i = 0; i < 12; ++i) {
         gpio_init(gpio_pins[i]);
@@ -21,9 +24,17 @@ static void init_gpios(void) {
         else
             gpio_pull_down(gpio_pins[i]);
     }
+
+    /* Enable PWM mode for the SMPS to (hopefully) limit ADC noise */
+    gpio_init(23);
+    gpio_set_dir(23, GPIO_OUT);
+    gpio_put(23, 1);
+
+    /* Set up the ADC for the stick */
+    adc_gpio_init(STICK_GPIO);
 }
 
-static uint16_t read_buttons(void) {
+static inline uint16_t read_buttons(void) {
     int i;
     bool st;
     uint16_t rv = 0;
@@ -35,6 +46,11 @@ static uint16_t read_buttons(void) {
     }
 
     return rv;
+}
+
+static inline uint16_t read_stick(void) {
+    adc_select_input(STICK_ADC_CHANNEL);
+    return (uint16_t)adc_read();
 }
 
 static void hid_task(void) {
@@ -58,6 +74,7 @@ static void hid_task(void) {
         if(!tud_hid_ready())
             return;
 
+        report.x = read_stick();
         tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
     }
 }

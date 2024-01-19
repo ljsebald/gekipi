@@ -8,8 +8,8 @@
 #define REPORT_ID_MAX               REPORT_ID_INOUT
 
 typedef struct TU_ATTR_PACKED {
-    int16_t  x;
-    int16_t  y;
+    uint16_t x;
+    uint16_t y;
     uint16_t buttons;
 } gekipi_gamepad_report_t;
 
@@ -39,8 +39,8 @@ typedef enum {
     HID_USAGE_PAGE     ( HID_USAGE_PAGE_DESKTOP                  ) ,\
     HID_USAGE          ( HID_USAGE_DESKTOP_X                     ) ,\
     HID_USAGE          ( HID_USAGE_DESKTOP_Y                     ) ,\
-    HID_LOGICAL_MIN_N  ( 0x8001, 2                               ) ,\
-    HID_LOGICAL_MAX_N  ( 0x7fff, 2                               ) ,\
+    HID_LOGICAL_MIN_N  ( 0x0000, 2                               ) ,\
+    HID_LOGICAL_MAX_N  ( 0xffff, 3                               ) ,\
     HID_REPORT_COUNT   ( 2                                       ) ,\
     HID_REPORT_SIZE    ( 16                                      ) ,\
     HID_INPUT          ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE  ) ,\

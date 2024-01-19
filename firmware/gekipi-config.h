@@ -18,4 +18,7 @@ static const int gpio_pulls[] = {
      1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1
 };
 
+#define STICK_GPIO        28
+#define STICK_ADC_CHANNEL (STICK_GPIO - 26)
+
 #endif /* !GEKIPI_CONFIG_H */
