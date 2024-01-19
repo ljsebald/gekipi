@@ -94,6 +94,7 @@ int main(void) {
     stdio_init_all();
     board_init();
     tusb_init();
+    init_gpios();
 
     for(;;) {
         tud_task();
