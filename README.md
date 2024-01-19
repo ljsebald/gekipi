@@ -16,11 +16,8 @@ for more information.
 
 ## Dependencies
 
-This code depends on the following CircuitPython libraries (beyond the ones
-included by default in the Pi Pico/Pi Pico W CircuitPython 8.x):
-
-- adafruit_hid
-- neopixel
+The firmware for GekiPi currently only depends on the base Raspberry Pi Pico
+SDK and its TinyUSB library.
 
 ## Pinouts and GPIO assignments:
 
