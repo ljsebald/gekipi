@@ -7,8 +7,8 @@ anyone to actually try to use just yet.
 
 ## License
 
-The code in the firmware directory is covered by the GNU General Public License,
-version 2. See `COPYING.GPLv2` for more information.
+The code in the firmware directory is covered by the MIT License. See
+`COPYING.MIT` for more information.
 
 The hardware design in the board directory is covered by the CERN Open Hardware
 License Version 2 - Strongly Reciprocal (CERN-OHL-S). See `cern_ohl_s_v2.txt`

@@ -1,8 +1,8 @@
                                     GekiPi
-                     Copyright (C) 2023 Lawrence Sebald
+                  Copyright (C) 2023-2024 Lawrence Sebald
 
-Firmware code for this project is licensed under the GNU General Public
-License, version 2. See COPYING.GPLv2 for more information.
+Firmware code for this project is licensed under the MIT License. See
+COPYING.MIT for more information.
 
 Hardware designs for this project are licensed under the CERN Open Hardware
 License Version 2 - Strongly Recoprocal (CERN-OHL-S). See cern_ohl_s_v2.txt
