@@ -18,7 +18,16 @@ static const int gpio_pulls[] = {
      1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1
 };
 
-#define STICK_GPIO        28
-#define STICK_ADC_CHANNEL (STICK_GPIO - 26)
+#define STICK_GPIO          28
+#define STICK_ADC_CHANNEL   (STICK_GPIO - 26)
+
+/* Number of LEDs in each WAD */
+#define NUM_WAD_LEDS        6
+
+/* Total number of LEDs in the controller. One per button + one for NFC +
+   the above number per WAD */
+#define TOTAL_LEDS          (9 + (NUM_WAD_LEDS * 2))
+
+#define LED_PIN             20
 
 #endif /* !GEKIPI_CONFIG_H */

@@ -5,11 +5,17 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include "hardware/pio.h"
 
 #include "usb_descriptors.h"
 #include "gekipi-config.h"
+#include "ws2812.pio.h"
+
+static uint32_t led_values[TOTAL_LEDS];
+#define LED_RGB(r, g, b) ((r << 16) | (g << 24) | (b << 8))
 
 static void init_gpios(void) {
     int i;
@@ -58,7 +64,6 @@ static void hid_task(void) {
     static uint32_t start_ms = 0;
     uint16_t state;
 
-    // Refresh at most once every 1ms.
     if(board_millis() - start_ms < interval_ms)
         return;
 
@@ -82,7 +87,6 @@ static void hid_task(void) {
 uint16_t tud_hid_get_report_cb(uint8_t iface, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
-    // TODO not Implemented
     (void)iface;
     (void)report_id;
     (void)report_type;
@@ -107,11 +111,51 @@ void tud_hid_set_report_cb(uint8_t iface, uint8_t report_id,
     tud_hid_report(0, buffer, bufsize);
 }
 
+/* Use the second core to update the LEDs so that we don't disturb input by
+   doing it in the main core. Is this a waste of the core? Probably. But it's
+   there, so I might as well... */
+void core1_task(void) {
+    int i;
+
+    for(;;) {
+        multicore_fifo_pop_blocking();
+        for(i = 0; i < TOTAL_LEDS; ++i) {
+            pio_sm_put_blocking(pio0, 0, led_values[i]);
+        }
+    }
+}
+
 int main(void) {
+    uint offset;
+    int i;
+
     stdio_init_all();
     board_init();
     tusb_init();
     init_gpios();
+
+    multicore_launch_core1(core1_task);
+
+    offset = pio_add_program(pio0, &ws2812_program);
+    ws2812_program_init(pio0, 0, offset, LED_PIN, 800000, false);
+
+    /* Init the LEDs to an initial state... */
+    led_values[0] = LED_RGB(128, 0, 0);
+    led_values[1] = LED_RGB(0, 128, 0);
+    led_values[2] = LED_RGB(0, 0, 128);
+    led_values[3] = LED_RGB(128, 0, 0);
+    led_values[4] = LED_RGB(0, 128, 0);
+    led_values[5] = LED_RGB(0, 0, 128);
+    led_values[6] = LED_RGB(96, 0, 0);
+    led_values[7] = LED_RGB(128, 128, 0);
+    led_values[TOTAL_LEDS - 1] = LED_RGB(128, 128, 128);
+
+    for(i = 0; i < NUM_WAD_LEDS; ++i) {
+        led_values[8 + i] = LED_RGB(128, 0, 128);
+        led_values[8 + i + NUM_WAD_LEDS] = LED_RGB(128, 0, 128);
+    }
+
+    multicore_fifo_push_blocking(1);
 
     for(;;) {
         tud_task();
