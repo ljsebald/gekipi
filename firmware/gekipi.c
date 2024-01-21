@@ -9,6 +9,7 @@
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
+#include "hardware/i2c.h"
 
 #include "usb_descriptors.h"
 #include "gekipi-config.h"
@@ -38,6 +39,13 @@ static void init_gpios(void) {
 
     /* Set up the ADC for the stick */
     adc_gpio_init(STICK_GPIO);
+
+    /* Set up i2c for the NFC reader */
+    i2c_init(NFC_I2C, 100 * 1000);
+    gpio_set_function(NFC_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(NFC_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(NFC_SDA);
+    gpio_pull_up(NFC_SCL);
 }
 
 static inline uint16_t read_buttons(void) {
@@ -118,9 +126,11 @@ void core1_task(void) {
     int i;
 
     for(;;) {
-        multicore_fifo_pop_blocking();
-        for(i = 0; i < TOTAL_LEDS; ++i) {
-            pio_sm_put_blocking(pio0, 0, led_values[i]);
+        uint task = multicore_fifo_pop_blocking();
+        if(task == 1) {
+            for(i = 0; i < TOTAL_LEDS; ++i) {
+                pio_sm_put_blocking(pio0, 0, led_values[i]);
+            }
         }
     }
 }

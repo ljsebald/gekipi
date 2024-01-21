@@ -2,6 +2,7 @@
 #define GEKIPI_CONFIG_H
 
 #include "pico.h"
+#include "hardware/i2c.h"
 
 static const uint gpio_pins[] = {
 /*  LR  LG  LB  RR  RG  RB  LM  RM  LW  RW   S   T */
@@ -29,5 +30,9 @@ static const int gpio_pulls[] = {
 #define TOTAL_LEDS          (9 + (NUM_WAD_LEDS * 2))
 
 #define LED_PIN             20
+
+#define NFC_I2C             i2c0
+#define NFC_SDA             16
+#define NFC_SCL             17
 
 #endif /* !GEKIPI_CONFIG_H */

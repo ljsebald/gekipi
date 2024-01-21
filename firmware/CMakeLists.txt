@@ -37,6 +37,7 @@ target_link_libraries(gekipi
     pico_unique_id
     hardware_adc
     hardware_pio
+    hardware_i2c
     tinyusb_device
     tinyusb_board
     tinyusb_additions
