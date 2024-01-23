@@ -4,6 +4,9 @@
 #include "pico.h"
 #include "hardware/i2c.h"
 
+#define USB_VID     0x1209
+#define USB_PID     0x63C1
+
 static const uint gpio_pins[] = {
 /*  LR  LG  LB  RR  RG  RB  LM  RM  LW  RW   S   T */
      0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 21, 22
