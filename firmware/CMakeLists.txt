@@ -24,9 +24,14 @@ pico_generate_pio_header(gekipi ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio
 target_sources(gekipi PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}/gekipi.c
 	${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
+	${CMAKE_CURRENT_LIST_DIR}/pn532-lib/pn532.c
+	${CMAKE_CURRENT_LIST_DIR}/pn532-lib/pn532_pico.c
 )
 
-target_include_directories(gekipi PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(gekipi PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/pn532-lib
+)
 
 pico_add_extra_outputs(gekipi)
 pico_set_program_url(gekipi "https://github.com/ljsebald/gekipi")
