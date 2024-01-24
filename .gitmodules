@@ -1,0 +1,3 @@
+[submodule "firmware/pn532-lib"]
+	path = firmware/pn532-lib
+	url = https://github.com/ljsebald/pn532-lib.git
