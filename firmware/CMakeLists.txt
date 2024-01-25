@@ -40,6 +40,7 @@ target_link_libraries(gekipi
     pico_stdlib
     pico_multicore
     pico_unique_id
+    pico_util
     hardware_adc
     hardware_pio
     hardware_i2c

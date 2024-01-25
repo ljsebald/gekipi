@@ -10,13 +10,20 @@
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/i2c.h"
+#include "pico/util/queue.h"
 
 #include "usb_descriptors.h"
 #include "gekipi-config.h"
 #include "ws2812.pio.h"
+#include "pn532_pico.h"
 
 static uint32_t led_values[TOTAL_LEDS];
 #define LED_RGB(r, g, b) ((r << 16) | (g << 24) | (b << 8))
+
+static queue_t mpq;
+static PN532 nfc;
+
+static bool nfc_initted = false;
 
 static void init_gpios(void) {
     int i;
@@ -46,6 +53,12 @@ static void init_gpios(void) {
     gpio_set_function(NFC_SCL, GPIO_FUNC_I2C);
     gpio_pull_up(NFC_SDA);
     gpio_pull_up(NFC_SCL);
+
+    gpio_init(NFC_IRQ);
+    gpio_set_dir(NFC_IRQ, GPIO_IN);
+    gpio_pull_up(NFC_IRQ);
+
+    PN532_I2C_Init(&nfc, NFC_I2C, PN532_NO_PIN, PN532_NO_PIN);
 }
 
 static inline uint16_t read_buttons(void) {
@@ -119,18 +132,68 @@ void tud_hid_set_report_cb(uint8_t iface, uint8_t report_id,
     tud_hid_report(0, buffer, bufsize);
 }
 
+#define TASK_LED_UPDATE     1
+#define TASK_NFC_INIT       2
+#define TASK_NFC_POLL       3
+
+void nfc_init(void) {
+    int err;
+    uint8_t version[4];
+
+    printf("Initializing PN532...\n");
+
+    err = PN532_GetFirmwareVersion(&nfc, version);
+    if(err != PN532_STATUS_OK) {
+        printf("Failed to get PN532 firmware version\n");
+        return;
+    }
+
+    printf("Firmware version: %02x%02x%02x%02x\n", version[0], version[1],
+           version[2], version[3]);
+
+    err = PN532_SamConfiguration(&nfc);
+    if(err != PN532_STATUS_OK) {
+        printf("Failed to set SAM configuration\n");
+        return;
+    }
+
+    nfc_initted = true;
+}
+
 /* Use the second core to update the LEDs so that we don't disturb input by
    doing it in the main core. Is this a waste of the core? Probably. But it's
    there, so I might as well... */
 void core1_task(void) {
     int i;
+    uint8_t task;
 
     for(;;) {
-        uint task = multicore_fifo_pop_blocking();
-        if(task == 1) {
-            for(i = 0; i < TOTAL_LEDS; ++i) {
-                pio_sm_put_blocking(pio0, 0, led_values[i]);
+        if(queue_try_remove(&mpq, &task)) {
+            switch(task) {
+                case TASK_LED_UPDATE:
+                    for(i = 0; i < TOTAL_LEDS; ++i) {
+                        pio_sm_put_blocking(pio0, 0, led_values[i]);
+                    }
+
+                    break;
+
+                case TASK_NFC_INIT:
+                    if(!nfc_initted) {
+                        nfc_init();
+                    }
+
+                    break;
+
+                case TASK_NFC_POLL:
+                    if(nfc_initted) {
+                    }
+
+                    break;
             }
+        }
+
+        if(gpio_get(NFC_IRQ) == false) {
+            printf("IRQ on core 1!\n");
         }
     }
 }
@@ -138,11 +201,14 @@ void core1_task(void) {
 int main(void) {
     uint offset;
     int i;
+    uint8_t data;
 
     stdio_init_all();
     board_init();
     tusb_init();
     init_gpios();
+
+    queue_init(&mpq, 1, 10);
 
     multicore_launch_core1(core1_task);
 
@@ -165,7 +231,11 @@ int main(void) {
         led_values[8 + i + NUM_WAD_LEDS] = LED_RGB(128, 0, 128);
     }
 
-    multicore_fifo_push_blocking(1);
+    data = TASK_LED_UPDATE;
+    queue_add_blocking(&mpq, &data);
+
+    data = TASK_NFC_INIT;
+    queue_add_blocking(&mpq, &data);
 
     for(;;) {
         tud_task();

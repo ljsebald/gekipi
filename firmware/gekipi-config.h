@@ -37,5 +37,6 @@ static const int gpio_pulls[] = {
 #define NFC_I2C             i2c0
 #define NFC_SDA             16
 #define NFC_SCL             17
+#define NFC_IRQ             18
 
 #endif /* !GEKIPI_CONFIG_H */
