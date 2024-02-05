@@ -1,3 +1,27 @@
+/*
+    GekiPi -- An arcade-style controller firmware
+
+    Copyright (C) 2023-2024 Lawrence Sebald
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+    IN THE SOFTWARE.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +48,7 @@ static queue_t mpq;
 static PN532 nfc;
 
 static bool nfc_initted = false;
+static uint8_t nfc_report[15];
 
 static void init_gpios(void) {
     int i;
@@ -97,11 +122,11 @@ static void hid_task(void) {
     else {
         gekipi_gamepad_report_t report = { .x = 0, .y = 0, .buttons = state };
 
-        if(!tud_hid_ready())
+        if(!tud_hid_n_ready(GAMEPAD_INSTANCE))
             return;
 
         report.x = read_stick();
-        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
+        tud_hid_n_report(GAMEPAD_INSTANCE, 0, &report, sizeof(report));
     }
 }
 
@@ -117,24 +142,43 @@ uint16_t tud_hid_get_report_cb(uint8_t iface, uint8_t report_id,
     return 0;
 }
 
-void tud_hid_set_report_cb(uint8_t iface, uint8_t report_id,
-                           hid_report_type_t report_type, uint8_t const *buffer,
-                           uint16_t bufsize) {
-    (void)iface;
-
-    if(report_type != HID_REPORT_TYPE_OUTPUT)
-        return;
-
-    if(report_id != REPORT_ID_INOUT)
-        return;
-
-    // echo back anything we received from host
-    tud_hid_report(0, buffer, bufsize);
-}
-
 #define TASK_LED_UPDATE     1
 #define TASK_NFC_INIT       2
 #define TASK_NFC_POLL       3
+
+#define REPORT_LED_UPDATE   1
+#define REPORT_NFC_POLL     2
+#define REPORT_NFC_REQUEST  3
+
+void tud_hid_set_report_cb(uint8_t intf, uint8_t report_id,
+                           hid_report_type_t report_type, uint8_t const *buffer,
+                           uint16_t bufsize) {
+    uint8_t tmp;
+
+    if(intf == NFC_INSTANCE && report_id == 0 && report_type == 0) {
+        if(!tud_hid_n_ready(NFC_INSTANCE) || bufsize < 1)
+            return;
+
+        switch(buffer[0]) {
+            case REPORT_LED_UPDATE:
+                printf("Got led update of length %d\n", (int)bufsize);
+                break;
+
+            case REPORT_NFC_POLL:
+                printf("Got NFC poll request\n");
+                tmp = TASK_NFC_POLL;
+                queue_add_blocking(&mpq, tmp);
+                break;
+
+            case REPORT_NFC_REQUEST:
+                printf("Got NFC request of length %d\n", (int)bufsize);
+                break;
+
+            default:
+                printf("Got unknown set report: %d\n", (int)buffer[0]);
+        }
+    }
+}
 
 void nfc_init(void) {
     int err;

@@ -1,3 +1,27 @@
+/*
+    GekiPi -- An arcade-style controller firmware
+
+    Copyright (C) 2023-2024 Lawrence Sebald
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+    IN THE SOFTWARE.
+*/
+
 /* Adapted from Pico SDK Example usb/device/dev_hid_composite */
 /* 
  * The MIT License (MIT)
@@ -64,51 +88,61 @@ uint8_t const *tud_descriptor_device_cb(void) {
 // HID Report Descriptor
 //--------------------------------------------------------------------+
 
-uint8_t const desc_hid_report[] = {
-    GEKIPI_HID_REPORT_DESC_GAMEPAD(HID_REPORT_ID(REPORT_ID_GAMEPAD)),
-    TUD_HID_REPORT_DESC_GENERIC_INOUT(CFG_TUD_HID_EP_BUFSIZE,
-                                      HID_REPORT_ID(REPORT_ID_INOUT))
+uint8_t const desc_gp_report[] = {
+    GEKIPI_HID_REPORT_DESC_GAMEPAD()
+};
+
+uint8_t const desc_rawhid_report[] = {
+    TUD_HID_REPORT_DESC_GENERIC_INOUT(CFG_TUD_HID_EP_BUFSIZE)
 };
 
 // Invoked when received GET HID REPORT DESCRIPTOR
 // Application return pointer to descriptor
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
-    (void)instance;
-    return desc_hid_report;
+    if(instance == 0)
+        return desc_gp_report;
+    else
+        return desc_rawhid_report;
 }
 
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
-
 enum {
     ITF_NUM_CDC,
     ITF_NUM_CDC_DATA,
-    ITF_NUM_HID,
+    ITF_NUM_HID1,
+    ITF_NUM_HID2,
     ITF_NUM_TOTAL
 };
 
 #define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + \
                              TUD_HID_INOUT_DESC_LEN + \
+                             TUD_HID_DESC_LEN + \
                              TUD_CDC_DESC_LEN)
 
 #define EPNUM_CDC_CMD   0x81
 #define EPNUM_CDC_IN    0x82
 #define EPNUM_CDC_OUT   0x02
-#define EPNUM_HID_IN    0x83
-#define EPNUM_HID_OUT   0x03
+#define EPNUM_HID1_OUT  0x83
+#define EPNUM_HID2_IN   0x84
+#define EPNUM_HID2_OUT  0x04
 
 uint8_t const desc_configuration[] = {
-  TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
-                        TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 500),
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
+                          TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 500),
 
-  TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_CMD, CFG_TUD_CDC_EP_BUFSIZE,
-                     EPNUM_CDC_OUT, EPNUM_CDC_IN, CFG_TUD_CDC_TX_BUFSIZE),
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_CMD, CFG_TUD_CDC_EP_BUFSIZE,
+                       EPNUM_CDC_OUT, EPNUM_CDC_IN, CFG_TUD_CDC_TX_BUFSIZE),
 
-  TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID, 4, HID_ITF_PROTOCOL_NONE,
-                           sizeof(desc_hid_report), EPNUM_HID_OUT,
-                           EPNUM_HID_IN, CFG_TUD_HID_EP_BUFSIZE, 1)
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID1, 5, HID_ITF_PROTOCOL_NONE,
+                       sizeof(desc_gp_report), EPNUM_HID1_OUT,
+                       CFG_TUD_HID_EP_BUFSIZE, 1),
+
+    TUD_HID_INOUT_DESCRIPTOR(ITF_NUM_HID2, 6, HID_ITF_PROTOCOL_NONE,
+                             sizeof(desc_rawhid_report), EPNUM_HID2_OUT,
+                             EPNUM_HID2_IN, CFG_TUD_HID_EP_BUFSIZE, 1)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -134,7 +168,8 @@ char const *string_desc_arr [] = {
     "GekiPi Controller",           // 2: Product
     serial,                        // 3: Serials, uses the flash ID
     "GekiPi CDC Device",
-    "GekiPi HID Device"
+    "GekiPi Gamepad Device",
+    "GekiPi NFC/LED Device"
 };
 
 static uint16_t _desc_str[32];
