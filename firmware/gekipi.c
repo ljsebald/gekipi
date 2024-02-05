@@ -167,7 +167,7 @@ void tud_hid_set_report_cb(uint8_t intf, uint8_t report_id,
             case REPORT_NFC_POLL:
                 printf("Got NFC poll request\n");
                 tmp = TASK_NFC_POLL;
-                queue_add_blocking(&mpq, tmp);
+                queue_add_blocking(&mpq, &tmp);
                 break;
 
             case REPORT_NFC_REQUEST:
@@ -210,6 +210,8 @@ void nfc_init(void) {
 void core1_task(void) {
     int i;
     uint8_t task;
+    bool polling_nfc = false, polling_felica = false;
+    uint32_t poll_timer, last_switch, tmp;
 
     for(;;) {
         if(queue_try_remove(&mpq, &task)) {
@@ -229,15 +231,64 @@ void core1_task(void) {
                     break;
 
                 case TASK_NFC_POLL:
+                    printf("Beginning NFC poll....\n");
                     if(nfc_initted) {
+                        polling_nfc = true;
+                        poll_timer = board_millis() + 30 * 1000;
+                        last_switch = 0;
                     }
 
                     break;
             }
         }
 
-        if(gpio_get(NFC_IRQ) == false) {
-            printf("IRQ on core 1!\n");
+        if(polling_nfc) {
+            if(gpio_get(NFC_IRQ) == false) {
+                printf("IRQ on core 1!\n");
+
+                if(polling_felica) {
+                    uint8_t idm[8], pmm[8];
+                    uint16_t syscode;
+
+                    printf("Got a FeliCa card!\n");
+                    PN532_FelicaGet(&nfc, idm, pmm, &syscode, 1);
+                    printf("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+                           idm[0], idm[1], idm[2], idm[3], idm[4], idm[5],
+                           idm[6], idm[7]);
+                }
+                else {
+                    uint8_t idm[7];
+
+                    printf("Got a MiFare card!\n");
+                    PN532_MifareGet(&nfc, idm, 1);
+                    printf("%02x %02x %02x %02x %02x %02x %02x\n",
+                           idm[0], idm[1], idm[2], idm[3], idm[4], idm[5],
+                           idm[6]);
+                }
+
+                polling_nfc = false;
+            }
+            else {
+                tmp = board_millis();
+
+                if(tmp > poll_timer) {
+                    printf("Polling aborted.\n");
+                    polling_nfc = false;
+                }
+                else if(tmp > last_switch + 5000) {
+                    if(polling_felica) {
+                        printf("Beginning mifare listen\n");
+                        PN532_MifareListen(&nfc, PN532_MIFARE_ISO14443A, 1);
+                    }
+                    else {
+                        printf("Beginning felica listen\n");
+                        PN532_FelicaListen(&nfc, FELICA_POLL_SYSTEM_CODE_ANY,
+                                           FELICA_POLL_SYSTEM_CODE, 1);
+                    }
+                    polling_felica = !polling_felica;
+                    last_switch = tmp;
+                }
+            }
         }
     }
 }
