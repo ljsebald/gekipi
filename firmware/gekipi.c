@@ -48,7 +48,13 @@ static queue_t mpq;
 static PN532 nfc;
 
 static bool nfc_initted = false;
-static uint8_t nfc_report[15];
+static volatile int nfc_type = 0;
+static int mifare_uidlen = 0;
+static uint8_t mifare_uid[10];
+static uint8_t felica_idm[8];
+static uint8_t felica_pmm[8];
+static uint8_t felica_syscode[2];
+static uint8_t pktbuf[24];
 
 static void init_gpios(void) {
     int i;
@@ -150,32 +156,102 @@ uint16_t tud_hid_get_report_cb(uint8_t iface, uint8_t report_id,
 #define REPORT_NFC_POLL     2
 #define REPORT_NFC_REQUEST  3
 
-void tud_hid_set_report_cb(uint8_t intf, uint8_t report_id,
+static void send_rawhid_response(uint8_t inst, uint8_t task, uint8_t retval) {
+    const uint8_t pkt[2] = { task, retval };
+    tud_hid_n_report(inst, 0, pkt, sizeof(pkt));
+}
+
+static void update_led(int led, uint8_t r, uint8_t g, uint8_t b) {
+    int i;
+    uint32_t color = LED_RGB(r, g, b);
+
+    if(led < 8) {
+        led_values[led] = color;
+    }
+    else if(led == 10) {
+        led_values[TOTAL_LEDS - 1] = color;
+    }
+    else if(led == 8) {
+        for(i = 0; i < NUM_WAD_LEDS; ++i) {
+            led_values[8 + i] = color;
+        }
+    }
+    else if(led == 9) {
+        for(i = 0; i < NUM_WAD_LEDS; ++i) {
+            led_values[8 + NUM_WAD_LEDS + i] = color;
+        }
+    }
+}
+
+void tud_hid_set_report_cb(uint8_t inst, uint8_t report_id,
                            hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
-    uint8_t tmp;
+    uint8_t task;
+    int i;
 
-    if(intf == NFC_INSTANCE && report_id == 0 && report_type == 0) {
+    if(inst == NFC_INSTANCE && report_id == 0 && report_type == 0) {
         if(!tud_hid_n_ready(NFC_INSTANCE) || bufsize < 1)
             return;
 
         switch(buffer[0]) {
             case REPORT_LED_UPDATE:
                 printf("Got led update of length %d\n", (int)bufsize);
+                if(bufsize != 34) {
+                    send_rawhid_response(inst, buffer[0], 0xff);
+                    break;
+                }
+
+                for(i = 0; i < 11; ++i) {
+                    update_led(i, buffer[i * 3 + 1], buffer[i * 3 + 2],
+                               buffer[i * 3 + 3]);
+                }
+
+                task = TASK_LED_UPDATE;
+                queue_add_blocking(&mpq, &task);
+                send_rawhid_response(inst, buffer[0], 0);
                 break;
 
             case REPORT_NFC_POLL:
                 printf("Got NFC poll request\n");
-                tmp = TASK_NFC_POLL;
-                queue_add_blocking(&mpq, &tmp);
+                nfc_type = -1;
+                task = TASK_NFC_POLL;
+                queue_add_blocking(&mpq, &task);
+                send_rawhid_response(inst, buffer[0], 0);
                 break;
 
             case REPORT_NFC_REQUEST:
-                printf("Got NFC request of length %d\n", (int)bufsize);
+                printf("Got NFC request\n");
+
+                if(nfc_type == 0) {
+                    send_rawhid_response(inst, buffer[0], 0xfe);
+                    break;
+                }
+                else if(nfc_type == -1) {
+                    send_rawhid_response(inst, buffer[0], 0);
+                }
+                else if(nfc_type == 1) {
+                    pktbuf[0] = buffer[0];
+                    pktbuf[1] = 1;
+                    memcpy(&pktbuf[2], mifare_uid, mifare_uidlen);
+                    tud_hid_n_report(inst, 0, pktbuf, mifare_uidlen + 2);
+                    break;
+                }
+                else if(nfc_type == 2) {
+                    pktbuf[0] = buffer[0];
+                    pktbuf[1] = 2;
+                    memcpy(&pktbuf[2], felica_idm, 8);
+                    memcpy(&pktbuf[10], felica_pmm, 8);
+                    memcpy(&pktbuf[18], felica_syscode, 2);
+                    tud_hid_n_report(inst, 0, pktbuf, 20);
+                    break;
+                }
+
+                send_rawhid_response(inst, buffer[0], 0xff);
                 break;
 
             default:
                 printf("Got unknown set report: %d\n", (int)buffer[0]);
+                send_rawhid_response(inst, buffer[0], 0xff);
         }
     }
 }
@@ -220,14 +296,12 @@ void core1_task(void) {
                     for(i = 0; i < TOTAL_LEDS; ++i) {
                         pio_sm_put_blocking(pio0, 0, led_values[i]);
                     }
-
                     break;
 
                 case TASK_NFC_INIT:
                     if(!nfc_initted) {
                         nfc_init();
                     }
-
                     break;
 
                 case TASK_NFC_POLL:
@@ -237,36 +311,32 @@ void core1_task(void) {
                         poll_timer = board_millis() + 30 * 1000;
                         last_switch = 0;
                     }
-
                     break;
             }
         }
 
         if(polling_nfc) {
             if(gpio_get(NFC_IRQ) == false) {
-                printf("IRQ on core 1!\n");
-
                 if(polling_felica) {
-                    uint8_t idm[8], pmm[8];
                     uint16_t syscode;
 
                     printf("Got a FeliCa card!\n");
-                    PN532_FelicaGet(&nfc, idm, pmm, &syscode, 1);
-                    printf("%02x %02x %02x %02x %02x %02x %02x %02x\n",
-                           idm[0], idm[1], idm[2], idm[3], idm[4], idm[5],
-                           idm[6], idm[7]);
+                    if(PN532_FelicaGet(&nfc, felica_idm, felica_pmm, &syscode,
+                                       1) == PN532_STATUS_OK) {
+                        felica_syscode[0] = (uint8_t)(syscode >> 8);
+                        felica_syscode[1] = (uint8_t)(syscode);
+                        polling_nfc = false;
+                        nfc_type = 2;
+                    }
                 }
                 else {
-                    uint8_t idm[7];
-
                     printf("Got a MiFare card!\n");
-                    PN532_MifareGet(&nfc, idm, 1);
-                    printf("%02x %02x %02x %02x %02x %02x %02x\n",
-                           idm[0], idm[1], idm[2], idm[3], idm[4], idm[5],
-                           idm[6]);
+                    mifare_uidlen = PN532_MifareGet(&nfc, mifare_uid, 1);
+                    if(mifare_uidlen > 0) {
+                        polling_nfc = false;
+                        nfc_type = 1;
+                    }
                 }
-
-                polling_nfc = false;
             }
             else {
                 tmp = board_millis();
@@ -274,6 +344,7 @@ void core1_task(void) {
                 if(tmp > poll_timer) {
                     printf("Polling aborted.\n");
                     polling_nfc = false;
+                    nfc_type = 0;
                 }
                 else if(tmp > last_switch + 5000) {
                     if(polling_felica) {
@@ -285,6 +356,7 @@ void core1_task(void) {
                         PN532_FelicaListen(&nfc, FELICA_POLL_SYSTEM_CODE_ANY,
                                            FELICA_POLL_SYSTEM_CODE, 1);
                     }
+
                     polling_felica = !polling_felica;
                     last_switch = tmp;
                 }

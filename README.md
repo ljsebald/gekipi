@@ -17,7 +17,8 @@ for more information.
 ## Dependencies
 
 The firmware for GekiPi currently only depends on the base Raspberry Pi Pico
-SDK and its TinyUSB library.
+SDK, its TinyUSB library, and my version of pn532-lib (which is a git submodule
+of the firmware directory).
 
 ## Pinouts and GPIO assignments:
 
