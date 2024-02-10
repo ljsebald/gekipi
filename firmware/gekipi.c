@@ -346,7 +346,7 @@ void core1_task(void) {
                     }
                 }
                 else {
-                    printf("Got a MiFare card!\n");
+                    printf("Got a MIFARE card!\n");
                     mifare_uidlen = PN532_MifareGet(&nfc, mifare_uid, 1);
                     if(mifare_uidlen > 0) {
                         polling_nfc = false;
@@ -364,11 +364,11 @@ void core1_task(void) {
                 }
                 else if(tmp > last_switch + 5000) {
                     if(polling_felica) {
-                        printf("Beginning mifare listen\n");
+                        printf("Beginning MIFARE listen\n");
                         PN532_MifareListen(&nfc, PN532_MIFARE_ISO14443A, 1);
                     }
                     else {
-                        printf("Beginning felica listen\n");
+                        printf("Beginning FeliCa listen\n");
                         PN532_FelicaListen(&nfc, FELICA_POLL_SYSTEM_CODE_ANY,
                                            FELICA_POLL_SYSTEM_CODE, 1);
                     }
