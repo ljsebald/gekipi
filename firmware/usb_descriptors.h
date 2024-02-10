@@ -34,6 +34,13 @@ typedef struct TU_ATTR_PACKED {
     uint16_t buttons;
 } gekipi_gamepad_report_t;
 
+typedef struct TU_ATTR_PACKED {
+    uint8_t report_id;
+    uint8_t retcode;
+    uint16_t lever;
+    uint16_t buttons;
+} gekipi_button_report_t;
+
 typedef enum {
     GEKIPI_BUTTON_LR        = TU_BIT(0),
     GEKIPI_BUTTON_LG        = TU_BIT(1),

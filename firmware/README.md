@@ -27,6 +27,7 @@ the command needs. The following commands are currently supported:
    color component, so there should be 33 bytes of data total after the command.
 2. Begin NFC Polling (command = 0x02, no data)
 3. Request NFC Data (command = 0x03, no data)
+4. Request control data (command = 0x04, no data)
 
 Each command will respond with a response in the following format:
 

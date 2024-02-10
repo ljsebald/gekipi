@@ -155,6 +155,7 @@ uint16_t tud_hid_get_report_cb(uint8_t iface, uint8_t report_id,
 #define REPORT_LED_UPDATE   1
 #define REPORT_NFC_POLL     2
 #define REPORT_NFC_REQUEST  3
+#define REPORT_GP_POLL      4
 
 static void send_rawhid_response(uint8_t inst, uint8_t task, uint8_t retval) {
     const uint8_t pkt[2] = { task, retval };
@@ -181,6 +182,17 @@ static void update_led(int led, uint8_t r, uint8_t g, uint8_t b) {
             led_values[8 + NUM_WAD_LEDS + i] = color;
         }
     }
+}
+
+static void send_rawgp_report(void) {
+    gekipi_button_report_t report = {
+        .report_id = REPORT_GP_POLL,
+        .retcode = 0,
+        .lever = read_stick(),
+        .buttons = read_buttons()
+    };
+
+    tud_hid_n_report(NFC_INSTANCE, 0, &report, sizeof(report));
 }
 
 void tud_hid_set_report_cb(uint8_t inst, uint8_t report_id,
@@ -247,6 +259,10 @@ void tud_hid_set_report_cb(uint8_t inst, uint8_t report_id,
                 }
 
                 send_rawhid_response(inst, buffer[0], 0xff);
+                break;
+
+            case REPORT_GP_POLL:
+                send_rawgp_report();
                 break;
 
             default:
@@ -389,7 +405,7 @@ int main(void) {
     led_values[3] = LED_RGB(128, 0, 0);
     led_values[4] = LED_RGB(0, 128, 0);
     led_values[5] = LED_RGB(0, 0, 128);
-    led_values[6] = LED_RGB(96, 0, 0);
+    led_values[6] = LED_RGB(128, 0, 0);
     led_values[7] = LED_RGB(128, 128, 0);
     led_values[TOTAL_LEDS - 1] = LED_RGB(128, 128, 128);
 
