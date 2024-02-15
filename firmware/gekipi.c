@@ -64,9 +64,9 @@ static void init_gpios(void) {
     for(i = 0; i < 12; ++i) {
         gpio_init(gpio_pins[i]);
         gpio_set_dir(gpio_pins[i], GPIO_IN);
-        if(gpio_pulls[i])
+        if(gpio_pulls[i] > 0)
             gpio_pull_up(gpio_pins[i]);
-        else
+        else if(gpio_pulls[i] < 0)
             gpio_pull_down(gpio_pins[i]);
     }
 
@@ -99,7 +99,7 @@ static inline uint16_t read_buttons(void) {
     uint32_t all = gpio_get_all();
 
     for(i = 0; i < 12; ++i) {
-        if((all & (1 << gpio_pins[i])) == gpio_pressed[i])
+        if(((all >> gpio_pins[i]) & 1)  == gpio_pressed[i])
             rv |= (1 << i);
     }
 
@@ -108,7 +108,12 @@ static inline uint16_t read_buttons(void) {
 
 static inline uint16_t read_stick(void) {
     adc_select_input(STICK_ADC_CHANNEL);
-    return (uint16_t)adc_read();
+
+#if STICK_INVERTED == 1
+    return (uint16_t)((4095 - adc_read()) << 4);
+#else
+    return (uint16_t)(adc_read() << 4);
+#endif
 }
 
 static void hid_task(void) {

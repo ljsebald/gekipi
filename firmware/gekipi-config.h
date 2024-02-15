@@ -31,23 +31,27 @@
 #define USB_VID     0x1209
 #define USB_PID     0x63C1
 
+/* What GPIO each button uses */
 static const uint gpio_pins[] = {
 /*  LR  LG  LB  RR  RG  RB  LM  RM  LW  RW   S   T */
      0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 21, 22
 };
 
+/* What level implies pressed. 0 = Low, 1 = High */
 static const int gpio_pressed[] = {
 /*  LR  LG  LB  RR  RG  RB  LM  RM  LW  RW   S   T */
      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  0,  0
 };
 
+/* Set to > 0 for pull up, < 0 for pull down, = 0 for no pull */
 static const int gpio_pulls[] = {
 /*  LR  LG  LB  RR  RG  RB  LM  RM  LW  RW   S   T */
-     1,  1,  1,  1,  1,  1,  1,  1,  0,  0,  1,  1
+     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1
 };
 
 #define STICK_GPIO          28
 #define STICK_ADC_CHANNEL   (STICK_GPIO - 26)
+#define STICK_INVERTED      1
 
 /* Number of LEDs in each WAD */
 #define NUM_WAD_LEDS        6
